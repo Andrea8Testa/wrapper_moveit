@@ -1,0 +1,5 @@
+<launch>
+    <param name="arm_id" value="panda"/> 
+    <node name="wrapper_moveit" pkg="wrapper_moveit" type="wrapper_moveit.py" respawn="false" output="screen" />
+</launch>
+
