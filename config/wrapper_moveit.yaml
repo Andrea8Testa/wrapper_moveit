@@ -1,3 +1,2 @@
-arm_id: panda
 target_joint_topic_name: /target_joint_states
 target_array_topic_name: /joint_impedance_controller/des_joint_pos

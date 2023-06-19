@@ -13,8 +13,8 @@ class BridgeNode:
     def __init__(self):
         rospy.init_node('wrapper_moveit')
         namespace = "wrapper_moveit"
-        robot_name = rospy.get_param('~arm_id', 0)
-        print("robot_name: ", robot_name)
+        robot_name = rospy.get_param('~robot_id', 0)
+        print("robot_id: ", robot_name)
         if not type(robot_name) == str:
             raise Exception("Param 'arm_id' not found")
         action_topic_name = namespace + '/follow_joint_trajectory'

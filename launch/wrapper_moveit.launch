@@ -1,5 +1,8 @@
 <launch>
+  <arg name="robot_id" default="panda" />
+  
   <node name="wrapper_moveit" pkg="wrapper_moveit" type="wrapper_moveit.py" respawn="false" output="screen">
+    <param name="robot_id" value="$(arg robot_id)" />
     <rosparam file="$(find wrapper_moveit)/config/wrapper_moveit.yaml"/>
   </node>
 </launch>
