@@ -8,22 +8,26 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 import numpy as np
 
+
 class BridgeNode:
     def __init__(self):
         rospy.init_node('wrapper_moveit')
         namespace = "wrapper_moveit"
-        robot_name = rospy.get_param('~arm_id', "panda")
+        robot_name = rospy.get_param('~arm_id', 0)
+        print("robot_name: ", robot_name)
+        if not type(robot_name) == str:
+            raise Exception("Param 'arm_id' not found")
         action_topic_name = namespace + '/follow_joint_trajectory'
-        target_joint_topic_name = namespace + '/target_joint_states'
-        target_array_topic_name = robot_name + '/cartesian_impedance_controller/des_joint_pos'
+        target_joint_topic_name = rospy.get_param('~target_joint_topic_name', 0)
+        target_array_topic_name = rospy.get_param('~target_array_topic_name', 0)
         joint_state_topic_name = robot_name + '/joint_states'
         # Set up action server
         self.action_server = actionlib.SimpleActionServer(action_topic_name, FollowJointTrajectoryAction, self.execute_trajectory, False)
         self.action_server.start()
 
         # Initialize communication with your controller here
-        self.target_joint_pub = rospy.Publisher(target_joint_topic_name, JointState, queue_size=1)
-        self.target_array_pub = rospy.Publisher(target_array_topic_name, Float64MultiArray, queue_size=1)
+        self.target_joint_pub = rospy.Publisher(namespace + target_joint_topic_name, JointState, queue_size=1)
+        self.target_array_pub = rospy.Publisher(robot_name + target_array_topic_name, Float64MultiArray, queue_size=1)
         self.joint_state_sub = rospy.Subscriber(joint_state_topic_name, JointState, self.joint_feedback)
 
         # Initialize messages
@@ -44,9 +48,6 @@ class BridgeNode:
             rate = rospy.Rate(100)  # Set the desired rate of 100 Hz
             init_time = (rospy.Time.now()).to_sec()
             end_time = (rospy.Time.now().to_sec() + duration)
-            print(init_time)
-            print(end_time)
-            print(duration)
 
             # Monitor the execution status and provide feedback to MoveIt
             while rospy.Time.now().to_sec() < end_time:
