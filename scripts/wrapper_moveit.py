@@ -3,9 +3,10 @@
 import rospy
 import actionlib
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal, FollowJointTrajectoryFeedback, FollowJointTrajectoryResult
+from control_msgs.msg import GripperCommandAction, GripperCommandGoal, GripperCommandFeedback, GripperCommandResult
 from trajectory_msgs.msg import JointTrajectory
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64, Float64MultiArray
 import numpy as np
 
 
@@ -18,21 +19,30 @@ class BridgeNode:
         if not type(robot_name) == str:
             raise Exception("Param 'arm_id' not found")
         action_topic_name = namespace + '/follow_joint_trajectory'
+        gripper_topic_name = namespace + '_gripper/gripper_action'
         target_joint_topic_name = rospy.get_param('~target_joint_topic_name', 0)
         target_array_topic_name = rospy.get_param('~target_array_topic_name', 0)
+        target_gripper_topic_name = rospy.get_param('~target_gripper_topic_name', 0)
         joint_state_topic_name = robot_name + '/joint_states'
+        gripper_state_topic_name = robot_name + '/gripper/width'
         # Set up action server
         self.action_server = actionlib.SimpleActionServer(action_topic_name, FollowJointTrajectoryAction, self.execute_trajectory, False)
         self.action_server.start()
 
+        self.gripper_action_server = actionlib.SimpleActionServer(gripper_topic_name, GripperCommandAction, self.gripper_command, False)
+        self.gripper_action_server.start()
+
         # Initialize communication with your controller here
         self.target_joint_pub = rospy.Publisher(namespace + target_joint_topic_name, JointState, queue_size=1)
         self.target_array_pub = rospy.Publisher(robot_name + target_array_topic_name, Float64MultiArray, queue_size=1)
+        self.target_gripper_pub = rospy.Publisher(robot_name + target_gripper_topic_name, Float64, queue_size=1)
         self.joint_state_sub = rospy.Subscriber(joint_state_topic_name, JointState, self.joint_feedback)
+        self.gripper_state_sub = rospy.Subscriber(gripper_state_topic_name, Float64, self.gripper_feedback)
 
         # Initialize messages
         self.target_joint = JointState()
         self.target_array = Float64MultiArray()
+        self.target_gripper = Float64()
 
         rospy.spin()
 
@@ -118,10 +128,42 @@ class BridgeNode:
 
         print("Done")
 
+    def gripper_command(self, goal):
+        print("Setting the gripper command")
+        position_command = goal.command.position
+        max_effort_command = goal.command.max_effort
+
+        # Create a std_msgs/Float64 message
+        self.target_gripper = Float64()
+        self.target_gripper.data = position_command
+        # Publish the std_msgs/Float64 message
+        self.target_gripper_pub.publish(self.target_gripper)
+
+        # Create and populate the feedback message
+        feedback = GripperCommandFeedback()
+        feedback.position = self.gripper_feedback
+        # Publish feedback to MoveIt
+        self.gripper_action_server.publish_feedback(feedback)
+
+        # Handle the result based on the execution status
+        success = True  # Set this based on your gripper control logic
+        # Create and populate the result message for a successful action
+        result = GripperCommandResult()
+        # Set the appropriate result values
+        if success:
+            self.gripper_action_server.set_succeeded(result)
+        else:
+            self.gripper_action_server.set_aborted(result)
+
+        print("Done")
+
     def joint_feedback(self, joints):
         self.joint_position_feedback = joints.position
         self.joint_velocity_feedback = joints.velocity
         self.joint_effort_feedback = joints.effort
+
+    def gripper_feedback(self, gripper):
+        self.gripper_feedback = gripper.data
 
 
 if __name__ == '__main__':
