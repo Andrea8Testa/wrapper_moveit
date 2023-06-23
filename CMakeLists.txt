@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   trajectory_msgs
+  hrii_gri_interface
 )
 
 ## System dependencies are found with CMake's conventions

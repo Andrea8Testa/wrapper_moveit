@@ -5,6 +5,7 @@ import actionlib
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal, FollowJointTrajectoryFeedback, FollowJointTrajectoryResult
 from control_msgs.msg import GripperCommandAction, GripperCommandGoal, GripperCommandFeedback, GripperCommandResult
 from trajectory_msgs.msg import JointTrajectory
+from hrii_gri_interface.srv import SetGripperData
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64, Float64MultiArray
 import numpy as np
@@ -133,11 +134,31 @@ class BridgeNode:
         position_command = goal.command.position
         max_effort_command = goal.command.max_effort
 
+        # Not working on the real robot
         # Create a std_msgs/Float64 message
-        self.target_gripper = Float64()
-        self.target_gripper.data = position_command
+        #self.target_gripper = Float64()
+        #self.target_gripper.data = position_command
         # Publish the std_msgs/Float64 message
-        self.target_gripper_pub.publish(self.target_gripper)
+        #self.target_gripper_pub.publish(self.target_gripper)
+
+        if position_command < 0.01:
+            velocity = 1.0   # Set the desired velocity
+            force = 20       # Set the desired force
+            print("grasping...")
+            success = self.call_grasp_from_outside(velocity, force)
+            if success:
+                print("grasping completed")
+            else:
+                print("error occurred")
+        else:
+            velocity = 0.3   # Set the desired velocity
+            force = 0.0      # Set the desired force
+            print("opening the gripper...")
+            success = self.call_open_gripper(velocity, force)
+            if success:
+                print("gripper opened")
+            else:
+                print("error occurred")
 
         # Create and populate the feedback message
         feedback = GripperCommandFeedback()
@@ -145,8 +166,6 @@ class BridgeNode:
         # Publish feedback to MoveIt
         self.gripper_action_server.publish_feedback(feedback)
 
-        # Handle the result based on the execution status
-        success = True  # Set this based on your gripper control logic
         # Create and populate the result message for a successful action
         result = GripperCommandResult()
         # Set the appropriate result values
@@ -156,6 +175,26 @@ class BridgeNode:
             self.gripper_action_server.set_aborted(result)
 
         print("Done")
+
+    def call_grasp_from_outside(self, velocity, force):
+        rospy.wait_for_service('/panda/gripper/grasp_from_outside')
+        try:
+            grasp_from_outside = rospy.ServiceProxy('/panda/gripper/grasp_from_outside', SetGripperData)
+            response = grasp_from_outside(velocity, force)
+            return response.success
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed: " + str(e))
+            return False
+
+    def call_open_gripper(self, velocity, force):
+        rospy.wait_for_service('/panda/gripper/open')
+        try:
+            open_gripper = rospy.ServiceProxy('/panda/gripper/open', SetGripperData)
+            response = open_gripper(velocity, force)
+            return response.success
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed: " + str(e))
+            return False
 
     def joint_feedback(self, joints):
         self.joint_position_feedback = joints.position
